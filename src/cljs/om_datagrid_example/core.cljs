@@ -14,10 +14,17 @@
                                   {:first "Eva" :last "Ator" :email "eval@mit.edu"}
                                   {:first "Louis" :last "Reasoner" :email "prolog@mit.edu"}
                                   {:first "Cy" :last "Effect" :email "bugs@mit.edu"}
-                                  {:first "Lem" :last "Tweakit" :email "morebugs@mit.edu"}]}))
+                                  {:first "Lem" :last "Tweakit" :email "morebugs@mit.edu"}
+                                  {:first "John" :last "Wein" :email "wein@mit.edu"}
+                                  {:first "Laura" :last "Mit" :email "aphacker@mit.edu"}
+                                  {:first "Vicky" :last "Gold" :email "gold@mit.edu"}
+                                  {:first "Louis" :last "Amstrong" :email "prolog@mit.edu"}
+                                  {:first "Carol" :last "Corner" :email "corner@mit.edu"}
+                                  {:first "Jason" :last "Smith" :email "smith@mit.edu"}]}))
 
-(defn view-row [contact]
-  (map #(d/td nil %) contact))
+
+(defn get-headers [data]
+  (keys (stringify-keys (first data))))
 
 (defn main []
   (om/root
@@ -31,9 +38,9 @@
                         (table {:striped? true :bordered? true :condensed? true :hover? true}
                                (d/thead
                                  (d/tr
-                                   (map #(d/th nil %) (keys (stringify-keys (first (:data @app-state)))))))
+                                   (map #(d/th nil %) (get-headers (:data app)))))
                                (d/tbody
-                                 (for [row (:data @app-state)]
+                                 (for [row (:data app)]
                                    (d/tr
                                      (for [col row]
                                        (d/td (last col)))))
