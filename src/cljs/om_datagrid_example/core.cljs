@@ -26,30 +26,37 @@
 (defn get-headers [data]
   (keys (stringify-keys (first data))))
 
+(defn contact-row-view [contact owner]
+  (reify
+    om/IRender
+    (render [_]
+      (d/tr
+        (for [col contact]
+          (d/td (last col)))))))
+
+(defn contacts-list-view [app owner]
+  (reify
+    om/IRender
+    (render [_]
+      (d/div nil
+             (d/h1 nil (:title app))
+             (d/div nil
+                    (table {:striped? true :bordered? true :condensed? true :hover? true}
+                           (d/thead
+                             (d/tr
+                               (map #(d/th nil %) (get-headers (:data app)))))
+                           (d/tbody
+                             (om/build-all contact-row-view (:data app))
+                             ))
+                    (pg/pagination {}
+                                   (pg/previous {})
+                                   (pg/page {} "1")
+                                   (pg/page {} "2")
+                                   (pg/page {} "3")
+                                   (pg/next {})))))))
+
 (defn main []
   (om/root
-    (fn [app owner]
-      (reify
-        om/IRender
-        (render [_]
-          (d/div nil
-                 (d/h1 nil (:title app))
-                 (d/div nil
-                        (table {:striped? true :bordered? true :condensed? true :hover? true}
-                               (d/thead
-                                 (d/tr
-                                   (map #(d/th nil %) (get-headers (:data app)))))
-                               (d/tbody
-                                 (for [row (:data app)]
-                                   (d/tr
-                                     (for [col row]
-                                       (d/td (last col)))))
-                                 ))
-                        (pg/pagination {}
-                                       (pg/previous {})
-                                       (pg/page {} "1")
-                                       (pg/page {} "2")
-                                       (pg/page {} "3")
-                                       (pg/next {})))))))
+    contacts-list-view
     app-state
     {:target (. js/document (getElementById "app"))}))
