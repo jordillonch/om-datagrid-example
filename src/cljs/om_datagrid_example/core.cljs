@@ -1,27 +1,16 @@
 (ns om-datagrid-example.core
-  (:require [om.core :as om :include-macros true]
+  (:require-macros [cljs.core.async.macros :refer [go]])
+  (:require [cljs.core.async :refer [put! chan alts! pub <! >!]]
+            [om.core :as om :include-macros true]
             [om-tools.dom :as d :include-macros true]
             [om-tools.core :refer-macros [defcomponent]]
             [om-bootstrap.table :refer [table]]
             [om-bootstrap.pagination :as pg]
-            [clojure.walk :refer [stringify-keys]]))
+            [clojure.walk :refer [stringify-keys]]
+            [om-datagrid-example.paginator :as paginator]
+            [om-datagrid-example.data-bridge :as data-bridge]))
 
 (enable-console-print!)
-
-(defonce app-state (atom {:title "Datagrid example!"
-                          :data  [{:first "Ben" :last "Bitdiddle" :email "benb@mit.edu"}
-                                  {:first "Alyssa" :last "Hacker" :email "aphacker@mit.edu"}
-                                  {:first "Eva" :last "Ator" :email "eval@mit.edu"}
-                                  {:first "Louis" :last "Reasoner" :email "prolog@mit.edu"}
-                                  {:first "Cy" :last "Effect" :email "bugs@mit.edu"}
-                                  {:first "Lem" :last "Tweakit" :email "morebugs@mit.edu"}
-                                  {:first "John" :last "Wein" :email "wein@mit.edu"}
-                                  {:first "Laura" :last "Mit" :email "aphacker@mit.edu"}
-                                  {:first "Vicky" :last "Gold" :email "gold@mit.edu"}
-                                  {:first "Louis" :last "Amstrong" :email "prolog@mit.edu"}
-                                  {:first "Carol" :last "Corner" :email "corner@mit.edu"}
-                                  {:first "Jason" :last "Smith" :email "smith@mit.edu"}]}))
-
 
 (defn get-headers [data]
   (keys (stringify-keys (first data))))
@@ -36,27 +25,55 @@
 
 (defn contacts-list-view [app owner]
   (reify
-    om/IRender
-    (render [_]
-      (d/div nil
-             (d/h1 nil (:title app))
-             (d/div nil
-                    (table {:striped? true :bordered? true :condensed? true :hover? true}
-                           (d/thead
-                             (d/tr
-                               (map #(d/th nil %) (get-headers (:data app)))))
-                           (d/tbody
-                             (om/build-all contact-row-view (:data app))
-                             ))
-                    (pg/pagination {}
-                                   (pg/previous {})
-                                   (pg/page {} "1")
-                                   (pg/page {} "2")
-                                   (pg/page {} "3")
-                                   (pg/next {})))))))
+    om/IInitState
+    (init-state [_]
+      {:start 0 :per-page 3 :data nil})
+    om/IDidMount
+    (did-mount [_]
+      (let [res (chan)]
+        (go
+          (>! (om/get-shared owner :req-chan)
+              {:op       :get-data
+               :start    (om/get-state owner :start)
+               :per-page (om/get-state owner :per-page)
+               :res      res})
+          (om/set-state! owner :data (<! res)))))
+    om/IRenderState
+    (render-state [_ {:keys [data]}]
+      (if data
+        (d/div nil
+               (d/h1 nil "Datagrid example!")
+               (d/div nil
+                      (table {:striped? true :bordered? true :condensed? true :hover? true}
+                             (d/thead
+                               (apply d/tr nil
+                                      (map #(d/th nil %) (get-headers data))))
+                             (d/tbody
+                               (om/build-all contact-row-view data)))
+                      (pg/pagination {}
+                                     ; @todo
+                                     (pg/previous {:on-click #(paginator/page-previous owner)})
+                                     (pg/page {:active? true} "1")
+                                     (pg/page {} "2")
+                                     (pg/page {} "3")
+                                     (pg/next {:on-click #(paginator/page-next owner)}))))
+        (d/div "Loading ...")))))
+
 
 (defn main []
-  (om/root
-    contacts-list-view
-    app-state
-    {:target (. js/document (getElementById "app"))}))
+  (let [req-chan (chan)
+        pub-chan (chan)
+        notif-chan (pub pub-chan :topic)]
+
+    ;; server loop
+    (go
+      (while true
+        (data-bridge/serve (<! req-chan))))
+
+    (om/root
+      contacts-list-view
+      nil
+      {:shared {:req-chan   req-chan
+                :notif-chan notif-chan
+                :pub-chan   pub-chan}
+       :target (. js/document (getElementById "app"))})))
