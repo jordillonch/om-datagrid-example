@@ -1,6 +1,6 @@
 # om-datagrid-example
 
-Try to create an om datagrid.
+Example of an Om datagrid.
 
 
 ## Development
@@ -32,7 +32,7 @@ in 21.36 seconds.`, you're ready to go. Browse to
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2015
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
